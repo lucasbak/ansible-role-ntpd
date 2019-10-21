@@ -1,0 +1,73 @@
+---
+- name: Include OS-specific variables.
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Ensure NTP-related packages are installed.
+  package:
+    name: ntp
+    state: present
+
+- name: Ensure tzdata package is installed (Linux).
+  package:
+    name: "{{ ntp_tzdata_package }}"
+    state: present
+  when: ansible_system == "Linux"
+
+- include_tasks: clock-rhel-6.yml
+  when: ansible_os_family == 'RedHat' and ansible_distribution_version.split('.')[0] == '6'
+
+- name: Set timezone
+  timezone:
+    name: "{{ ntp_timezone }}"
+
+- name: Ensure NTP is running and enabled as configured.
+  service:
+    name: "{{ ntp_daemon }}"
+    state: started
+    enabled: true
+  when: ntp_enabled
+
+- name: Generate ntp.conf file
+  template:
+    src: ntp.conf.j2
+    dest: /etc/ntp.conf
+  notify: restart ntp
+  when: ntp_manage_config
+  register: ntpconfig
+
+- name: Ensure NTP is is restarted if config changed.
+  service:
+    name: "{{ ntp_daemon }}"
+    state: restarted
+    enabled: true
+  when: ntpconfig.changed
+
+- name: Get Lag Fudge Master
+  shell: "ntpdate -q {{ ntp_servers | first }} | head -n 1| sed 's/.*offset -*\\([0-9]*\\).*/\\1/'"
+  register: ntplag
+  when: ntp_servers is defined and (inventory_hostname != (ntp_servers | first))
+
+
+- name: Synchronize Fudge Master - Stop
+  service:
+    name: "{{ ntp_daemon }}"
+    state: stopped
+  when: ntp_servers is defined and (inventory_hostname != (ntp_servers | first)) and ( ntplag.stdout | int >  (lag / 1000) )
+
+- name: Synchronize Fudge Master
+  shell: "ntpdate {{ntp_servers | first}}"
+  when: ntp_servers is defined and (inventory_hostname != (ntp_servers | first)) and ( ntplag.stdout | int >  (lag / 1000) )
+  register: fudgedsynced
+
+- name: Synchronize Fudge Master - Start
+  service:
+    name: "{{ ntp_daemon }}"
+    state: started
+  when: ntp_servers is defined and (inventory_hostname != (ntp_servers | first)) and ( ntplag.stdout | int >  (lag / 1000) )
+
+# - name: Ensure NTP is stopped and disabled as configured.
+#   service:
+#     name: "{{ ntp_daemon }}"
+#     state: stopped
+#     enabled: false
+#   when: not ntp_enabled

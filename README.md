@@ -1,5 +1,7 @@
 # Ansible Role: NTP
 
+Forked from geerlingguy/ansible-role-ntp
+
 [![Build Status](https://travis-ci.org/geerlingguy/ansible-role-ntp.svg?branch=master)](https://travis-ci.org/geerlingguy/ansible-role-ntp)
 
 Installs NTP on Linux.

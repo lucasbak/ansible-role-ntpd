@@ -19,3 +19,6 @@ ntp_restrict:
 
 
 package_name: ntp
+
+ntp_manage_config: False
+shouldsync: False

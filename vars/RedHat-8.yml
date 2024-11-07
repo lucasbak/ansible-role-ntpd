@@ -1,0 +1,7 @@
+---
+ntp_daemon: chronyd
+ntp_tzdata_package: tzdata
+ntp_driftfile: /var/lib/ntp/drift
+package_name: chrony
+ntp_manage_config: False
+shouldsync: False
